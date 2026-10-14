@@ -1,0 +1,279 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<link rel="manifest" href="manifest.json">
+<title>JARVIS AI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:#e8f8ff;
+font:16px system-ui;max-width:700px;padding:20px;margin:auto}
+h1{text-align:center;color:#58e5ff;letter-spacing:5px}
+.orb{margin:25px auto;width:130px;height:130px;border:2px solid #58e5ff;
+border-radius:50%;display:grid;place-items:center;
+box-shadow:0 0 35px #1689c7;color:#58e5ff;font-size:45px}
+.card{background:#102238;border:1px solid #24445f;
+padding:16px;border-radius:16px;margin:14px 0}
+input{width:100%;padding:13px;border-radius:10px;
+border:1px solid #31536c;background:#071522;color:white;font-size:16px}
+button{padding:12px;border:0;border-radius:10px;
+background:#58dafa;color:#07111f;font-weight:bold;margin:5px 2px}
+button:active{opacity:.7}
+#reply{white-space:pre-wrap;overflow-wrap:anywhere}
+small{color:#9ab4c9}
+</style>
+</head>
+<body>
+<h1>JARVIS AI</h1>
+<div class="orb">✦</div>
+<p style="text-align:center">PERSONAL VOICE ASSISTANT</p>
+
+<div class="card">
+  <button id="mic">🎙️ Speak to JARVIS</button>
+  <input id="cmd" placeholder="Type your command...">
+  <button id="send">Execute command</button>
+</div>
+
+<div class="card">
+  <h3>JARVIS RESPONSE</h3>
+  <div id="reply">Systems ready. How can I help you?</div>
+  <button id="speak">🔊 Speak response</button>
+  <button id="stop">Stop voice</button>
+</div>
+
+<div class="card">
+  <h3>QUICK COMMANDS</h3>
+  <button data-cmd="open YouTube">YouTube</button>
+  <button data-cmd="open WhatsApp">WhatsApp</button>
+  <button data-cmd="open Google">Google</button>
+  <button data-cmd="open Gmail">Gmail</button>
+  <button data-cmd="what time is it">Time</button>
+  <button data-cmd="help">Help</button>
+</div>
+
+<div class="card">
+  <h3>MY TASKS</h3>
+  <input id="task" placeholder="Add a task...">
+  <button id="add">Save task</button>
+  <div id="tasks"></div>
+</div>
+
+<div class="card">
+  <small>
+  Privacy: This starter does not control other apps' screens.
+  Voice recognition support depends on your browser.
+  </small>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let lastReply = "Systems ready.";
+let tasks = [];
+
+try {
+  tasks = JSON.parse(localStorage.getItem("jarvis_tasks") || "[]");
+} catch(e) {}
+
+function respond(message) {
+  lastReply = message;
+  $("reply").textContent = message;
+}
+
+function say(message = lastReply) {
+  if (!("speechSynthesis" in window)) {
+    respond(message + "\nVoice output is unsupported here.");
+    return;
+  }
+  speechSynthesis.cancel();
+  const voice = new SpeechSynthesisUtterance(message);
+  voice.lang = "en-US";
+  speechSynthesis.speak(voice);
+}
+
+function openPage(url) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function command(text) {
+  const c = text.trim();
+  const s = c.toLowerCase();
+  if (!s) return;
+
+  if (s === "help" || s === "commands") {
+    respond(
+      "Available commands:\n" +
+      "• Open YouTube, WhatsApp, Google or Gmail\n" +
+      "• Search cats\n" +
+      "• What time is it\n" +
+      "• Add task finish my work\n" +
+      "• Show tasks"
+    );
+    return;
+  }
+
+  if (s.includes("what time") || s.includes("what date")) {
+    respond("It is " + new Date().toLocaleString());
+    return;
+  }
+
+  if (s.startsWith("add task ")) {
+    tasks.unshift({
+      text: c.substring(9).trim(),
+      done: false
+    });
+    saveTasks();
+    renderTasks();
+    respond("Task saved: " + c.substring(9));
+    return;
+  }
+
+  if (s === "show tasks" || s === "my tasks") {
+    respond("Your saved tasks are displayed below.");
+    return;
+  }
+
+  if (s.startsWith("open youtube")) {
+    respond("Opening YouTube.");
+    openPage("https://m.youtube.com/");
+    return;
+  }
+
+  if (s.startsWith("open whatsapp")) {
+    respond("Opening WhatsApp.");
+    openPage("https://wa.me/");
+    return;
+  }
+
+  if (s.startsWith("open google")) {
+    respond("Opening Google.");
+    openPage("https://www.google.com/");
+    return;
+  }
+
+  if (s.startsWith("open gmail")) {
+    respond("Opening Gmail.");
+    openPage("https://mail.google.com/");
+    return;
+  }
+
+  if (s.startsWith("search ")) {
+    const query = c.substring(7).trim();
+    respond("Searching the web for: " + query);
+    openPage("https://www.google.com/search?q=" +
+      encodeURIComponent(query));
+    return;
+  }
+
+  if (/^(hello|hi|salam|assalam)/i.test(c)) {
+    respond("Hello! JARVIS is ready. What would you like to do?");
+    return;
+  }
+
+  respond(
+    "I received: " + c +
+    "\nThis starter uses predefined commands. " +
+    "A connected AI model is needed for general intelligent answers."
+  );
+}
+
+$("send").onclick = () => {
+  command($("cmd").value);
+  $("cmd").value = "";
+};
+
+$("cmd").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("send").click();
+});
+
+document.querySelectorAll("[data-cmd]").forEach(button => {
+  button.onclick = () => command(button.dataset.cmd);
+});
+
+$("speak").onclick = () => say();
+$("stop").onclick = () => {
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+};
+
+$("mic").onclick = () => {
+  const Speech = window.SpeechRecognition ||
+                 window.webkitSpeechRecognition;
+
+  if (!Speech) {
+    respond("Voice input is unavailable in this browser. Try Chrome or type your command.");
+    return;
+  }
+
+  const recognition = new Speech();
+  recognition.lang = "en-US";
+  recognition.onstart = () => respond("Listening... speak now.");
+  recognition.onresult = event => {
+    const text = event.results[0][0].transcript;
+    $("cmd").value = text;
+    command(text);
+  };
+  recognition.onerror = () => respond(
+    "Microphone error. Check permission or type a command."
+  );
+  recognition.start();
+};
+
+function saveTasks() {
+  localStorage.setItem("jarvis_tasks", JSON.stringify(tasks));
+}
+
+function renderTasks() {
+  const container = $("tasks");
+  container.replaceChildren();
+
+  tasks.forEach((task, index) => {
+    const row = document.createElement("p");
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = task.done;
+    check.style.width = "auto";
+
+    check.onchange = () => {
+      tasks[index].done = check.checked;
+      saveTasks();
+      renderTasks();
+    };
+
+    const label = document.createElement("span");
+    label.textContent = " " + task.text;
+
+    const remove = document.createElement("button");
+    remove.textContent = "Delete";
+    remove.onclick = () => {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    };
+
+    row.append(check, label, remove);
+    container.append(row);
+  });
+}
+
+$("add").onclick = () => {
+  const value = $("task").value.trim();
+  if (!value) return;
+
+  tasks.push({text: value, done: false});
+  $("task").value = "";
+  saveTasks();
+  renderTasks();
+  respond("Task saved successfully.");
+};
+
+renderTasks();
+
+if ("serviceWorker" in navigator &&
+    location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
